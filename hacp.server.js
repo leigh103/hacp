@@ -101,7 +101,7 @@ app.use(cors())
 
 
 
-    hacp.init(scope, (data) => {
+    method.init(scope, (data) => {
 
         // start main functions
 
@@ -287,7 +287,7 @@ app.use(cors())
 
     app.get('/init', (req, res) => {
 
-        hacp.init(scope, function(data){
+        method.init(scope, function(data){
             scope.emit('groups',scope.groups)
             scope.emit('lights',scope.lights)
             scope.emit('sensors',scope.sensors)
