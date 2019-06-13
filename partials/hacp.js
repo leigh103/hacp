@@ -11,21 +11,39 @@ module.exports = {
             scope.settings = JSON.parse(data);
 
             fs.readFile('./automations.json', function read(err, data) {
+
                 if (err) {throw err;}
-                scope.automations = JSON.parse(data);
+
+                if (data.length > 0){
+                    scope.automations = JSON.parse(data);
+                } else {
+                    scope.automations = {};
+                }
 
                 fs.readFile('./devices.json', function read(err, data) {
+
                     if (err) {throw err;}
-                    scope.devices = JSON.parse(data);
+
+                    if (data.length > 0){
+                        scope.devices = JSON.parse(data);
+                    } else {
+                        scope.devices = {};
+                    }
 
                     fs.readFile('./alarm.json', function read(err, data) {
+
                         if (err) {throw err;}
-                        scope.alarm = JSON.parse(data);
+
+                        if (data.length > 0){
+                            scope.alarm = JSON.parse(data);
+                        } else {
+                            scope.alarm = {};
+                        }
 
                         request({
                             method: 'GET',
                             url:'http://'+scope.settings.host+'/api/'+scope.settings.api_key
-                        }, function (error, request, body) {
+                        }, (error, request, body) => {
 
                             if (typeof body == 'string' && body.length>0){
                                 body = JSON.parse(body)
@@ -66,27 +84,35 @@ module.exports = {
 
     },
 
-    socketConnect(scope, func, callback){
+    socketConnect(scope, method, callback){
 
-        if (func.ws){
-            func.ws.close()
+        if (method.ws){
+            method.ws.close()
         }
 
-        func.ws = new WebSocket('ws://' + scope.settings.host + ':' + scope.settings.ws_port);
+        method.ws = new WebSocket('ws://' + scope.settings.host + ':' + scope.settings.ws_port);
 
-        func.ws.onmessage = function(msg) {
+        method.ws.onmessage = (msg) => {
 
             msg = JSON.parse(msg.data)
 
+
+            // relay the deconz websocket events to the HACP clients
+
+
             if (msg.id){
-                func.emit(msg.r,msg.state,msg.id)
+                method.emit(msg.r,msg.state,msg.id)
             } else {
-                func.emit(msg.r,msg.state)
+                method.emit(msg.r,msg.state)
             }
 
             scope.msg = msg
 
             if (msg.r == 'sensors'){
+
+
+                // button, switch and motion sensor event automations
+
 
                 if (msg.state){
                     if (msg.state.buttonevent){
@@ -104,31 +130,48 @@ module.exports = {
                 }
 
                 if (msg_state != 'daylight' || msg_state == 'daylight' && msg.state.daylight != scope.sensors['1'].state.daylight){ // only trigger the daylight sensor automations on change
-                    func.checkAutomation('s'+msg.id, msg_state)
+                    method.checkAutomation('s'+msg.id, msg_state)
                 }
 
 
-                if (msg.id == scope.daylight_sensor.id && msg.state && msg.state.lux){
-                    console.log(msg.id, scope.daylight_sensor.id , msg.state , msg.state.lux , scope.daylight_sensor.cutoff.dim, scope.daylight_sensor.state)
+                // outside light level sensor automations
+
+
+                var date_now = new Date()
+
+                if (date_now - scope.daylight_sensor.lastupdated >= 900000){ // if the last update for dark/dim/bright/sunny was over 30 mins ago. Stops automations repeatedly triggering if the light level is bouncing
+
+                    if (msg.id && msg.id == scope.daylight_sensor.id && msg.state && msg.state.lux && msg.state.lux <= scope.daylight_sensor.cutoff.dark && scope.daylight_sensor.state != 'dark'){
+
+                        method.checkAutomation('daylight_dark')
+                        scope.daylight_sensor.state = 'dark'
+                        scope.daylight_sensor.lastupdated = new Date()
+
+                    } else if (msg.id && msg.id == scope.daylight_sensor.id && msg.state && msg.state.lux && msg.state.lux > scope.daylight_sensor.cutoff.dark && msg.state.lux <= scope.daylight_sensor.cutoff.dim && scope.daylight_sensor.state != 'dim'){
+
+                        method.checkAutomation('daylight_dim')
+                        scope.daylight_sensor.state = 'dim'
+                        scope.daylight_sensor.lastupdated = new Date()
+
+                    } else if (msg.id && msg.id == scope.daylight_sensor.id && msg.state && msg.state.lux && msg.state.lux > scope.daylight_sensor.cutoff.dim && msg.state.lux <= scope.daylight_sensor.cutoff.bright && scope.daylight_sensor.state != 'bright'){
+
+                        method.checkAutomation('daylight_bright')
+                        scope.daylight_sensor.state = 'bright'
+                        scope.daylight_sensor.lastupdated = new Date()
+
+                    } else if (msg.id && msg.id == scope.daylight_sensor.id && msg.state && msg.state.lux && msg.state.lux > scope.daylight_sensor.cutoff.bright && scope.daylight_sensor.state != 'sunny'){
+
+                        method.checkAutomation('daylight_sunny')
+                        scope.daylight_sensor.state = 'sunny'
+                        scope.daylight_sensor.lastupdated = new Date()
+
+                    }
+
                 }
 
 
-                if (msg.id && msg.id == scope.daylight_sensor.id && msg.state && msg.state.lux && msg.state.lux <= scope.daylight_sensor.cutoff.dim && scope.daylight_sensor.state != 'dim'){
-                    console.log('Running Dim')
-                    func.checkAutomation('daylight_dim')
-                    scope.daylight_sensor.state = 'dim'
+                // using the inbuilt daylight sensor, trigger automations and set values based on the sun position
 
-                } else if (msg.id && msg.id == scope.daylight_sensor.id && msg.state && msg.state.lux && msg.state.lux > scope.daylight_sensor.cutoff.dim && msg.state.lux <= scope.daylight_sensor.cutoff.bright && scope.daylight_sensor.state != 'bright'){
-console.log('Running Bright')
-                    func.checkAutomation('daylight_bright')
-                    scope.daylight_sensor.state = 'bright'
-
-                } else if (msg.id && msg.id == scope.daylight_sensor.id && msg.state && msg.state.lux && msg.state.lux > scope.daylight_sensor.cutoff.bright && scope.daylight_sensor.state != 'sunny'){
-console.log('Running Sunny')
-                    func.checkAutomation('daylight_sunny')
-                    scope.daylight_sensor.state = 'sunny'
-
-                }
 
                 if (msg.id && msg.id == '1'){
 
@@ -137,7 +180,7 @@ console.log('Running Sunny')
                         scope.time.sunrise = false
                         scope.time.sunset = true
                         scope.time.dusk = false
-                        func.checkAutomation('dawn')
+                        method.checkAutomation('dawn')
                     }
 
                     if (parseInt(msg.state.status) >= 140 && parseInt(msg.state.status) < 180 && scope.time.sunrise === false){ // sunrise automation
@@ -145,7 +188,7 @@ console.log('Running Sunny')
                         scope.time.sunrise = true
                         scope.time.sunset = false
                         scope.time.dusk = false
-                        func.checkAutomation('sunrise')
+                        method.checkAutomation('sunrise')
                     }
 
                     if (parseInt(msg.state.status) >= 180 && parseInt(msg.state.status) < 200 && scope.time.sunset === false){ // sunset automation
@@ -153,7 +196,7 @@ console.log('Running Sunny')
                         scope.time.sunrise = false
                         scope.time.sunset = true
                         scope.time.dusk = false
-                        func.checkAutomation('sunset')
+                        method.checkAutomation('sunset')
                     }
 
                     if (parseInt(msg.state.status) >= 200 && parseInt(msg.state.status) < 230 && scope.time.dusk === false){ // sunset automation
@@ -161,18 +204,22 @@ console.log('Running Sunny')
                         scope.time.sunrise = false
                         scope.time.sunset = true
                         scope.time.dusk = true
-                        func.checkAutomation('dusk')
+                        method.checkAutomation('dusk')
                     }
 
 
                 }
+
+
+                // trigger the alarm if a motion sensor is triggered, which is included in the currently armed alarm sensor group
+
 
                 if (scope.alarm.armed === true && scope.alarm.sensors.length > 0){ // if the alarm has been armed
 
                     if (scope.alarm.sensors.indexOf(msg.id) !== -1){ // if the reporting sensor is in the current alarm sensor group
 
                         if (msg.state && msg.state.presence && msg.state.presence === true){ // if motion is detected trigger alarm
-                            func.triggerAlarm()
+                            method.triggerAlarm()
                         }
 
                     }
@@ -180,6 +227,10 @@ console.log('Running Sunny')
                 }
 
             }
+
+
+            // if the websocket event is for an entity, update it's stored values. Also if a light bri or ct is changed, update the group too
+
 
             if (msg.state && scope[msg.r] && scope[msg.r][msg.id]){
 
@@ -189,7 +240,7 @@ console.log('Running Sunny')
                     for (var i in scope.groups){
                         if (scope.groups[i] && scope.groups[i].lights.length > 0 && scope.groups[i].lights.indexOf(msg.id)>=0){
                             scope.groups[i].action = Object.assign(scope.groups[i].action, msg.state)
-                            func.emit('groups',JSON.stringify(msg.state),i,'action')
+                            method.emit('groups',JSON.stringify(msg.state),i,'action')
                         }
                         if (i > Object.keys(scope.groups).length){
                             break;
@@ -266,16 +317,16 @@ console.log('Running Sunny')
 
     },
 
-    getWeather(scope, func, callback){
+    getWeather(scope, method, callback){
 
         request({
             method: 'GET',
             url: 'https://api.darksky.net/forecast/18f56dfc0f212d31031ff29075c57aca/53.472,-2.139?units=uk2'
-        }, function(error, request, body){
+        }, (error, request, body) => {
 
             if (body){
                 scope.weather = JSON.parse(body)
-                func.emit('weather',scope.weather)
+                method.emit('weather',scope.weather)
 
                 if (callback){
                     callback(JSON.parse(body))
@@ -294,12 +345,16 @@ console.log('Running Sunny')
 
     save(filename, scope, callback){
 
-        fs.writeFile('./'+filename+'.json', JSON.stringify(scope[filename]), function read(err, data) {
-            if (err) {throw err;}
-            if (callback){
-                callback('ok')
-            }
-        });
+        if (scope[filename].length > 0 || Object.keys(scope[filename]).length > 0){
+
+            fs.writeFile('./'+filename+'.json', JSON.stringify(scope[filename]), function read(err, data) {
+                if (err) {throw err;}
+                if (callback){
+                    callback('ok')
+                }
+            });
+
+        }
 
     }
 

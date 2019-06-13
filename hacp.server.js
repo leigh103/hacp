@@ -19,7 +19,7 @@ app.use(cors())
 
 // Variables
 
-    var func = {}
+    var method = {}
 
     var scope = {
         msg: {},
@@ -28,7 +28,9 @@ app.use(cors())
         daylight_sensor:{
             id: 13,
             state: 'bright',
+            lastupdated: new Date(),
             cutoff: {
+                dark:20,
                 dim:1700,
                 bright:10000
             }
@@ -48,7 +50,7 @@ app.use(cors())
         timers: {}
     }
 
-    func.wss = new WebSocket.Server({ port: 6409 });
+    method.wss = new WebSocket.Server({ port: 6409 });
 
 // include external API functions
 
@@ -56,12 +58,12 @@ app.use(cors())
 
 // Start Services
 
-    hacp.init(scope, function(data){
+    hacp.init(scope, (data) => {
 
         // start main functions
 
-        hacp.socketConnect(scope,func)
-        hacp.getWeather(scope,func)
+        hacp.socketConnect(scope,method)
+        hacp.getWeather(scope,method)
 
         // start BT presence
         var ii = 0;
@@ -92,7 +94,7 @@ app.use(cors())
 
         // start webserver for control panel clients
 
-        func.wss.on('connection', function connection(ws) {
+        method.wss.on('connection', function connection(ws) {
             ws.send('connected');
         });
 
@@ -132,7 +134,7 @@ app.use(cors())
 
 // BT Presence functions
 
-    btp.on('ping-result', function(res){
+    btp.on('ping-result', (res) => {
 
 //        console.log(res)
 
@@ -149,10 +151,10 @@ app.use(cors())
             scope.devices[mac_parse].present = res.isPresent
 
             // trigger any device home automations and emit the change
-            func.checkAutomation(mac_parse, 'away')
-            func.alarmState(false, 0, true)
+            method.checkAutomation(mac_parse, 'away')
+            method.alarmState(false, 0, true)
             hacp.save('devices', scope)
-            func.emit('devices',scope.devices[mac_parse],mac_parse)
+            method.emit('devices',scope.devices[mac_parse],mac_parse)
 
         } else if (res.isPresent == true && scope.devices[mac_parse] && scope.devices[mac_parse].present === false){ // if device goes from away to here
 
@@ -165,10 +167,10 @@ app.use(cors())
             scope.devices[mac_parse].present = res.isPresent
 
             // trigger any device home automations and emit the change
-            func.checkAutomation(mac_parse, 'here')
-            func.alarmState(false, 0, true)
+            method.checkAutomation(mac_parse, 'here')
+            method.alarmState(false, 0, true)
             hacp.save('devices', scope)
-            func.emit('devices',scope.devices[mac_parse],mac_parse)
+            method.emit('devices',scope.devices[mac_parse],mac_parse)
 
         }
 
@@ -178,15 +180,15 @@ app.use(cors())
 
 // web server
 
-    app.get('/', function (req, res) {
+    app.get('/', (req, res) => {
 
         res.send('Hello World')
 
     })
 
-    app.get('/clean', function (req, res) {
+    app.get('/clean', (req, res) => {
 
-        func.cleanAutomations()
+        method.cleanAutomations()
         res.send('Done')
 
     })
@@ -229,7 +231,7 @@ app.use(cors())
             html: "<b>Your HACP email settings have been validated, nice work!</b>"
         }
 
-        transporter.sendMail(mailOptions, function(error, info){
+        transporter.sendMail(mailOptions, (error, info) => {
             if (error) {
             //    console.log(error)
                 res.send(error);
@@ -243,10 +245,10 @@ app.use(cors())
     app.get('/init', (req, res) => {
 
         hacp.init(scope, function(data){
-            func.emit('groups',scope.groups)
-            func.emit('lights',scope.lights)
-            func.emit('sensors',scope.sensors)
-            func.emit('devices',scope.devices)
+            method.emit('groups',scope.groups)
+            method.emit('lights',scope.lights)
+            method.emit('sensors',scope.sensors)
+            method.emit('devices',scope.devices)
             res.sendStatus(200)
         })
 
@@ -263,10 +265,10 @@ app.use(cors())
             method:'get'
         }
 
-        hacp.apiCall(req.params.type, get_data, scope.settings, function(data){
+        hacp.apiCall(req.params.type, get_data, scope.settings, (data) => {
         //    console.log(group_data)
             scope[req.params.type] = data
-            func.emit(req.params.type,scope[req.params.type], false, false, 'init')
+            method.emit(req.params.type,scope[req.params.type], false, false, 'init')
             res.sendStatus(200)
         })
 
@@ -283,10 +285,10 @@ app.use(cors())
             method:'get'
         }
 
-        hacp.apiCall(req.params.type+'/'+req.params.id, get_data, scope.settings, function(data){
+        hacp.apiCall(req.params.type+'/'+req.params.id, get_data, scope.settings, (data) => {
         //    console.log(group_data)
             scope[req.params.type][req.params.id] = data
-            func.emit(req.params.type,scope[req.params.type][req.params.id],req.params.id, false, 'init')
+            method.emit(req.params.type,scope[req.params.type][req.params.id],req.params.id, false, 'init')
             res.sendStatus(200)
         })
 
@@ -308,7 +310,7 @@ app.use(cors())
             .on('found', function found(address, name){
                 var mac_parse = 'd'+address.toUpperCase().replace(/\:/g,'')
                 devices.push({mac:address,name:name,mac_parse:mac_parse});
-            //    func.emit('bt_device',{mac:address,name:name},)
+            //    method.emit('bt_device',{mac:address,name:name},)
             }).scan()
     })
 
@@ -327,7 +329,7 @@ app.use(cors())
         if (scope.automations){
 
             let schedule = {}
-            async.forEachOf(scope.automations, function(item, key, callback){
+            async.forEachOf(scope.automations, (item, key, callback) => {
 
                 if (key.match(/^[0-9]{4}|sunset|sunrise|dusk|dawn|daylight/)){
                     schedule[key] = item
@@ -356,15 +358,15 @@ app.use(cors())
 
     app.get('/play/:type/:str', (req, res) => {
 
-        func.play(req.params.type,req.params.str)
+        method.play(req.params.type,req.params.str)
         res.send('ok')
 
     });
 
     app.put('/:entity_type', (req, res) => {
 
-        if (typeof func['put_'+req.params.entity_type] == 'function'){
-            func['put_'+req.params.entity_type](req.body, function(data){
+        if (typeof method['put_'+req.params.entity_type] == 'function'){
+            method['put_'+req.params.entity_type](req.body, (data) => {
                 res.json(data)
             })
         } else {
@@ -376,7 +378,7 @@ app.use(cors())
     app.put('/devices/:id', (req, res) => {
 
         if (req.body.name){
-            func.chDeviceName(req.params.id, req.body, function(data){
+            method.chDeviceName(req.params.id, req.body, (data) => {
                 res.json(data)
             })
         } else {
@@ -389,7 +391,7 @@ app.use(cors())
 
         if (req.body.type == 'check'){
             if (scope.alarm.alarms[req.body.key] && req.body.code == scope.alarm.alarms[req.body.key].code){
-                func.alarmState(true,req.body.key)
+                method.alarmState(true,req.body.key)
                 res.sendStatus(200)
             } else {
                 res.sendStatus(404)
@@ -400,8 +402,8 @@ app.use(cors())
 
     app.post('/:entity_type', (req, res) => {
 
-        if (typeof func['delete_'+req.params.entity_type] == 'function'){
-            func['delete_'+req.params.entity_type](req.body, function(data){
+        if (typeof method['delete_'+req.params.entity_type] == 'function'){
+            method['delete_'+req.params.entity_type](req.body, (data) => {
                 res.json(data)
             })
         } else {
@@ -413,7 +415,7 @@ app.use(cors())
     app.post('/:action/:type/:id', (req, res) => {
 
         const data = req.body;
-        func[req.params.action](req.params.type,req.params.id, data)
+        method[req.params.action](req.params.type,req.params.id, data)
         res.send('ok')
 
     });
@@ -424,9 +426,9 @@ app.use(cors())
 
     setInterval(function(){
 
-        scope.time.hours = moment().tz('Europe/London').hour();
-        scope.time.minutes = moment().tz('Europe/London').minute();
-        scope.time.seconds = moment().tz('Europe/London').second();
+        scope.time.hours = moment().tz(scope.settings.timezone).hour();
+        scope.time.minutes = moment().tz(scope.settings.timezone).minute();
+        scope.time.seconds = moment().tz(scope.settings.timezone).second();
 
         if (scope.time.minutes < 10){
             scope.time.minutes = "0"+scope.time.minutes
@@ -455,21 +457,21 @@ app.use(cors())
 
         if (scope.time.seconds == 0){ // every minute
 
-            func.checkAutomation(scope.time.HHmm)
-            func.emit('schedule',{check:scope.time.HHmm})
+            method.checkAutomation(scope.time.HHmm)
+            method.emit('schedule',{check:scope.time.HHmm})
 
         }
 
         if (scope.time.seconds == 30){ // every minute offset 30s
 
-            func.checkAutomation(''+parseInt(scope.time.HHmm)-1) // check if any temp automations have been missed
-            func.emit('schedule',{check:scope.time.HHmm})
+            method.checkAutomation(''+parseInt(scope.time.HHmm)-1) // check if any temp automations have been missed
+            method.emit('schedule',{check:scope.time.HHmm})
 
         }
 
         if (scope.time.minutes == 0 && scope.time.seconds == 0 || scope.time.minutes == 30 && scope.time.seconds == 0){ // every half hour
 
-            hacp.getWeather(scope,func)
+            hacp.getWeather(scope,method)
 
         }
 
@@ -479,7 +481,7 @@ app.use(cors())
 
         if (scope.time.hours == 1 && scope.time.minutes == 0 && scope.time.seconds == 0){ // 1am clean up temp automations
 
-            func.cleanAutomations()
+            method.cleanAutomations()
 
         }
 
@@ -494,9 +496,9 @@ app.use(cors())
         }
 
         if (scope.time.seconds % 10 === 0){
-            if (func.ws.readyState != 1){
+            if (method.ws.readyState != 1){
                 console.log('WS down, reconnecting...')
-                hacp.socketConnect(scope,func)
+                hacp.socketConnect(scope,method)
             }
         }
 
@@ -504,7 +506,7 @@ app.use(cors())
 
 // functions
 
-    func.alarmState = function(set, key, chk_devices){
+    method.alarmState = (set, key, chk_devices) => {
 
         var all_away = true
         var cnt = 1
@@ -524,20 +526,20 @@ app.use(cors())
                         if (set === true && scope.alarm.armed === false){ // don't set the alarm if it's already set
 
                             scope.alarm.all_away = true
-                            func.setAlarm(key)
-                            func.checkAutomation('all_devices', 'away')
-                            func.emit('alarm',scope.alarm)
+                            method.setAlarm(key)
+                            method.checkAutomation('all_devices', 'away')
+                            method.emit('alarm',scope.alarm)
 
                         } else {
 
-                            scope.alarm.setting = moment().tz('Europe/London').add(5,'m')
+                            scope.alarm.setting = moment().tz(scope.settings.timezone).add(5,'m')
 
                             if (!scope.timers.devices){
                                 scope.timers.devices = setTimeout(function(){ // wait 5 mins before setting the alarm
-                                    func.alarmState(true, key, true)
+                                    method.alarmState(true, key, true)
                                 },300000)
                             }
-                            func.emit('alarm',scope.alarm)
+                            method.emit('alarm',scope.alarm)
                             hacp.save('alarm',scope)
 
                         }
@@ -547,8 +549,8 @@ app.use(cors())
                         if (scope.timers.devices){
                             clearTimeout(scope.timers.devices)
                         }
-                        func.setAlarm(false)
-                        func.emit('devices','false','all_away')
+                        method.setAlarm(false)
+                        method.emit('devices','false','all_away')
                     }
 
                 } else {
@@ -561,12 +563,12 @@ app.use(cors())
 
         } else if (set === true && !chk_devices) { // force set/unset the alarm
 
-            func.setAlarm(key)
+            method.setAlarm(key)
 
         }
     }
 
-    func.setAlarm = function(key){
+    method.setAlarm = (key) => {
 
         if (scope.alarm.triggered){
             scope.alarm.last_triggered = scope.alarm.triggered
@@ -598,12 +600,12 @@ app.use(cors())
 
         }
 
-        func.emit('alarm',scope.alarm)
+        method.emit('alarm',scope.alarm)
         hacp.save('alarm',scope)
 
     }
 
-    func.triggerAlarm = function(){
+    method.triggerAlarm = () => {
 
         if (scope.alarm.key >= 0 && scope.alarm.alarms[scope.alarm.key] && scope.alarm.alarms[scope.alarm.key].email === true){
 
@@ -629,7 +631,7 @@ app.use(cors())
                 priority: "high"
             }
 
-            transporter.sendMail(mailOptions, function(error, info){
+            transporter.sendMail(mailOptions, (error, info) => {
                 if (error) {
                     console.log(error);
                 } else {
@@ -638,15 +640,15 @@ app.use(cors())
             });
         }
 
-        scope.alarm.triggered = moment().tz('Europe/London')
-        func.emit('alarm',scope.alarm)
+        scope.alarm.triggered = moment().tz(scope.settings.timezone)
+        method.emit('alarm',scope.alarm)
         hacp.save('alarm',scope)
 
     }
 
-    func.put_automations = function(data, callback){
+    method.put_automations = (data, callback) => {
         scope.automations = {...scope.automations, ...data}
-        hacp.save('automations',scope, function(data){
+        hacp.save('automations',scope, (data) => {
             if (data == 'ok'){
                 callback(200)
             } else {
@@ -655,13 +657,13 @@ app.use(cors())
         })
     }
 
-    func.put_devices = function(data, callback){
+    method.put_devices = (data, callback) => {
 
         var mac_parse = 'd'+data.mac.toUpperCase().replace(/\:/g,'')
         scope.devices[mac_parse] = {"present":true,"name":data.name,"mac_address":data.mac,"mac_parse":mac_parse}
-        hacp.save('devices', scope, function(data){
+        hacp.save('devices', scope, (data) => {
             if (data == 'ok'){
-                func.emit('devices',scope.devices[mac_parse],mac_parse)
+                method.emit('devices',scope.devices[mac_parse],mac_parse)
                 var arr = []
                 arr.push(scope.devices[mac_parse].mac_address)
                 btp.addDevices(arr)
@@ -672,12 +674,12 @@ app.use(cors())
         })
     }
 
-    func.put_device_master = function(data, callback){
+    method.put_device_master = (data, callback) => {
 
         scope.devices[data.mac_parse].is_master = data.is_master
-        hacp.save('devices', scope, function(data){
+        hacp.save('devices', scope, (data) => {
             if (data == 'ok'){
-                func.emit('devices',scope.devices[data.mac_parse],data.mac_parse)
+                method.emit('devices',scope.devices[data.mac_parse],data.mac_parse)
                 callback(200)
             } else {
                 callback(500)
@@ -685,12 +687,12 @@ app.use(cors())
         })
     }
 
-    func.chDeviceName = function(id, data, callback){
+    method.chDeviceName = (id, data, callback) => {
 
         scope.devices[id].name = data.name
-        hacp.save('devices', scope, function(data){
+        hacp.save('devices', scope, (data) => {
             if (data == 'ok'){
-                func.emit('devices',scope.devices[data.mac_parse],data.mac_parse)
+                method.emit('devices',scope.devices[data.mac_parse],data.mac_parse)
                 callback(200)
             } else {
                 callback(500)
@@ -699,7 +701,7 @@ app.use(cors())
 
     }
 
-    func.delete_automations = function(data, callback){
+    method.delete_automations = (data, callback) => {
 
         if (scope.automations[data.sensor] && scope.automations[data.sensor][data.event] && scope.automations[data.sensor][data.event][data.key]){
             scope.automations[data.sensor][data.event].splice(data.key,1)
@@ -713,7 +715,7 @@ app.use(cors())
             }
         }
 
-        hacp.save('automations',scope, function(data2){
+        hacp.save('automations',scope, (data2) => {
 
             if (data2 == 'ok'){
 
@@ -726,14 +728,14 @@ app.use(cors())
                     if (scope.automations){
 
                         let schedule = {}
-                        async.forEachOf(scope.automations, function(item, key, callback2){
+                        async.forEachOf(scope.automations, (item, key, callback2) => {
 
                             if (key.match(/^[0-9]|^sun/)){
                                 schedule[key] = item
                             }
                             callback2()
 
-                        }, function(err){
+                        }, (err) => {
                             callback(schedule)
                         })
 
@@ -750,7 +752,7 @@ app.use(cors())
 
     }
 
-    func.checkAutomation = function(evnt, val){
+    method.checkAutomation = (evnt, val) => {
 
         var automation_data = ''
 
@@ -762,7 +764,7 @@ app.use(cors())
 
         if (automation_data.length > 0){
 
-            async.eachSeries(automation_data, function (item, next){
+            async.eachSeries(automation_data, (item, next) => {
 
                 if (item && typeof item.orig_sensor == 'undefined' && typeof evnt == 'string'){
                     item.orig_sensor = evnt.replace(/^s|v|l|p|d/,'')
@@ -783,7 +785,7 @@ app.use(cors())
 
                     var test = 'init'
 
-                    async.eachSeries(item.conditions, function (cond, cond_next){
+                    async.eachSeries(item.conditions, (cond, cond_next) => {
 
                         var check_val = ''
                         if (cond.key && cond.child_key && typeof scope[cond.type][cond.id][cond.key][cond.child_key] != 'undefined'){
@@ -826,7 +828,7 @@ app.use(cors())
 
                         cond_next()
 
-                    }, function(cond_err){
+                    }, (cond_err) => {
 
                     //    console.log(test)
 
@@ -838,17 +840,17 @@ app.use(cors())
                             }
 
                             if (scope.sensors[item.orig_sensor] && scope.sensors[item.orig_sensor].state && scope.sensors[item.orig_sensor].state.presence && scope.sensors[item.orig_sensor].state.presence === true){
-                                func.emit('automation_temp_extend',item)
-                                func.addTempAutomation(item) // add another temp automation if the trigger is a motion sensor, and it's still detecting presence
+                                method.emit('automation_temp_extend',item)
+                                method.addTempAutomation(item) // add another temp automation if the trigger is a motion sensor, and it's still detecting presence
                             } else {
                                 if (test === true){
-                                    func.emit('automation_temp_run',item)
-                                    func.runAutomation(item)
+                                    method.emit('automation_temp_run',item)
+                                    method.runAutomation(item)
                                 }
                             }
                         } else {
                             if (test === true){
-                                func.runAutomation(item)
+                                method.runAutomation(item)
                             }
                         }
 
@@ -865,21 +867,21 @@ app.use(cors())
                         }
 
                         if (scope.sensors[item.orig_sensor] && scope.sensors[item.orig_sensor].state && scope.sensors[item.orig_sensor].state.presence && scope.sensors[item.orig_sensor].state.presence === true){
-                            func.emit('automation_temp_extend',item)
-                            func.addTempAutomation(item) // add another temp automation if the trigger is a motion sensor, and it's still detecting presence
+                            method.emit('automation_temp_extend',item)
+                            method.addTempAutomation(item) // add another temp automation if the trigger is a motion sensor, and it's still detecting presence
                         } else {
-                            func.emit('automation_temp_run',item)
-                            func.runAutomation(item)
+                            method.emit('automation_temp_run',item)
+                            method.runAutomation(item)
                         }
                     } else {
-                        func.runAutomation(item)
+                        method.runAutomation(item)
                     }
 
                     next()
 
                 }
 
-            }, function(err){
+            }, (err) => {
                 // done
             })
 
@@ -887,13 +889,13 @@ app.use(cors())
 
     }
 
-    func.runAutomation = function(data){
+    method.runAutomation = (data) => {
 
         if (typeof data.action == 'undefined'){
             return false
         }
 
-        func.emit('automation_run',data)
+        method.emit('automation_run',data)
 
         if (data.transitiontime && parseInt(data.transitiontime)>0){
             data.transitiontime = parseInt(data.transitiontime)
@@ -915,7 +917,7 @@ app.use(cors())
 
             if (entity_chk == false){ // only add the auto turn off automation, if the light or group is currently off. If the entity is on, it doesn't need another auto off automation
 
-                func.addTempAutomation(data)
+                method.addTempAutomation(data)
 
             }
 
@@ -923,55 +925,55 @@ app.use(cors())
 
         if (data.action.match(/toggle/)){
             var type = data.action.split('_')
-            func.toggle(type[0],data.entity_id, false, data.transitiontime)
+            method.toggle(type[0],data.entity_id, false, data.transitiontime)
         }
 
         if (data.action.match(/turn\_on/)){
             var type = data.action.split('_')
-            func.toggle(type[0],data.entity_id, 'true', data.transitiontime)
+            method.toggle(type[0],data.entity_id, 'true', data.transitiontime)
         }
 
         if (data.action.match(/turn\_off/)){
             var type = data.action.split('_')
-            func.toggle(type[0],data.entity_id, 'false', data.transitiontime)
+            method.toggle(type[0],data.entity_id, 'false', data.transitiontime)
         }
 
         if (data.action.match(/all\_off/)){
             var type = data.action.split('_')
-            func.toggle(type[0],scope.all_lights_group_id, 'false', data.transitiontime)
+            method.toggle(type[0],scope.all_lights_group_id, 'false', data.transitiontime)
         }
 
         if (data.action.match(/all\_on/)){
             var type = data.action.split('_')
-            func.toggle(type[0],scope.all_lights_group_id, 'true', data.transitiontime)
+            method.toggle(type[0],scope.all_lights_group_id, 'true', data.transitiontime)
         }
 
         if (data.action.match(/colorTemp/) && data.value){
             var type = data.action.split('_')
-            func.colorTemp(type[0],data.entity_id,{ct:data.value}, data.transitiontime)
+            method.colorTemp(type[0],data.entity_id,{ct:data.value}, data.transitiontime)
         }
 
         if (data.action.match(/brightness/) && data.value){
             var type = data.action.split('_')
-            func.brightness(type[0],data.entity_id,{bri:data.value}, data.transitiontime)
+            method.brightness(type[0],data.entity_id,{bri:data.value}, data.transitiontime)
         }
 
         if (data.action.match(/play_audio/) && data.value){
-            func.play(data.entity_id,data.value,scope.settings)
+            method.play(data.entity_id,data.value,scope.settings)
         }
 
         if (data.action.match(/activate_scene/) && data.value){
-            func.toggle('scene',data.entity_id,data.value, data.transitiontime)
+            method.toggle('scene',data.entity_id,data.value, data.transitiontime)
         }
 
     }
 
-    func.addTempAutomation = function(data){
+    method.addTempAutomation = (data) => {
 
-        func.emit('automation_temp_add',data)
+        method.emit('automation_temp_add',data)
 
-        var hrs = moment().tz('Europe/London').add(parseInt(data.duration),'m').hour()
-        var mins = moment().tz('Europe/London').add(parseInt(data.duration),'m').minute()
+        var hrs = moment().tz(scope.settings.timezone).add(parseInt(data.duration),'m').hour()
+        var mins = moment().tz(scope.settings.timezone).add(parseInt(data.duration),'m').minute()
 
         if (mins < 10){
             mins = "0"+mins
@@ -1004,22 +1006,22 @@ app.use(cors())
 
     }
 
-    func.cleanAutomations = function(){
+    method.cleanAutomations = () => {
 
-        async.forEachOf(scope.automations, function (item, key, next){
+        async.forEachOf(scope.automations, (item, key, next) => {
 
             if (item.length < 1){
                 delete scope.automations[key]
             }
 
             next()
-        }, function(err){
+        }, (err) => {
             hacp.save('automations',scope)
         })
 
     }
 
-    func.toggle = function(type, id, data, transitiontime){
+    method.toggle = (type, id, data, transitiontime) => {
 
         if (type == 'lights'){
             var url = type+'/'+id+'/state'
@@ -1081,14 +1083,14 @@ app.use(cors())
 
         if (type == 'scene'){ // apply the scene, update the group and emit it to the clients. Deconz doesn't emit a scene update, so this makes up for it
 
-            hacp.apiCall(url, new_data, scope.settings, function(res_data){
+            hacp.apiCall(url, new_data, scope.settings, (res_data) => {
                 var group_get_data = {
                     method:'get'
                 }
-                hacp.apiCall('groups/'+id, group_get_data, scope.settings, function(group_data){
+                hacp.apiCall('groups/'+id, group_get_data, scope.settings, (group_data) => {
                 //    console.log(group_data)
                     scope.groups[id] = group_data
-                    func.emit('groups',scope.groups[id],id, false, 'init')
+                    method.emit('groups',scope.groups[id],id, false, 'init')
                 })
             })
         } else {
@@ -1096,7 +1098,7 @@ app.use(cors())
         }
     }
 
-    func.colorTemp = function(type, id, data, transitiontime){
+    method.colorTemp = (type, id, data, transitiontime) => {
 
         if (type == 'lights'){
             var url = type+'/'+id+'/state'
@@ -1116,7 +1118,7 @@ app.use(cors())
 
     }
 
-    func.brightness = function(type, id, data, transitiontime){
+    method.brightness = (type, id, data, transitiontime) => {
 
         if (type == 'lights'){
             var url = type+'/'+id+'/state'
@@ -1136,13 +1138,13 @@ app.use(cors())
 
     }
 
-    func.play = function(type,src){
+    method.play = (type,src) => {
         hacp.audioCall(type, src, scope.settings)
     }
 
 // events
 
-    func.emit = function(obj,data,id,obj_key,evnt){
+    method.emit = (obj,data,id,obj_key,evnt) => {
 
         var data = {
             e: 'changed',
@@ -1168,13 +1170,13 @@ app.use(cors())
             var group_get_data = {
                 method:'get'
             }
-            hacp.apiCall('groups', group_get_data, scope.settings, function(group_data){
+            hacp.apiCall('groups', group_get_data, scope.settings, (group_data) => {
             //    console.log(group_data)
                 scope.groups = group_data
             })
         }
 
-        func.wss.clients.forEach(function each(client) {
+        method.wss.clients.forEach(function each(client) {
             if (client.readyState === WebSocket.OPEN) {
                 client.send(JSON.stringify(data));
             }
