@@ -1,6 +1,7 @@
 const WebSocket = require('ws')
 const request = require('request')
 const fs = require('fs')
+const method = require('./methods.js');
 
 module.exports = {
 
@@ -84,15 +85,15 @@ module.exports = {
 
     },
 
-    socketConnect(scope, method, callback){
+    socketConnect(scope, callback){
 
-        if (method.ws){
-            method.ws.close()
+        if (scope.ws && scope.ws.close){
+            scope.ws.close()
         }
 
-        method.ws = new WebSocket('ws://' + scope.settings.host + ':' + scope.settings.ws_port);
+        scope.ws = new WebSocket('ws://' + scope.settings.host + ':' + scope.settings.ws_port);
 
-        method.ws.onmessage = (msg) => {
+        scope.ws.onmessage = (msg) => {
 
             msg = JSON.parse(msg.data)
 
@@ -101,9 +102,9 @@ module.exports = {
 
 
             if (msg.id){
-                method.emit(msg.r,msg.state,msg.id)
+                scope.emit(msg.r,msg.state,msg.id)
             } else {
-                method.emit(msg.r,msg.state)
+                scope.emit(msg.r,msg.state)
             }
 
             scope.msg = msg
@@ -240,7 +241,7 @@ module.exports = {
                     for (var i in scope.groups){
                         if (scope.groups[i] && scope.groups[i].lights.length > 0 && scope.groups[i].lights.indexOf(msg.id)>=0){
                             scope.groups[i].action = Object.assign(scope.groups[i].action, msg.state)
-                            method.emit('groups',JSON.stringify(msg.state),i,'action')
+                            scope.emit('groups',JSON.stringify(msg.state),i,'action')
                         }
                         if (i > Object.keys(scope.groups).length){
                             break;
@@ -317,7 +318,7 @@ module.exports = {
 
     },
 
-    getWeather(scope, method, callback){
+    getWeather(scope, func, callback){
 
         request({
             method: 'GET',
@@ -326,7 +327,7 @@ module.exports = {
 
             if (body){
                 scope.weather = JSON.parse(body)
-                method.emit('weather',scope.weather)
+                scope.emit('weather',scope.weather)
 
                 if (callback){
                     callback(JSON.parse(body))
