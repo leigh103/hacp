@@ -8,7 +8,6 @@ const cors = require('cors')
 const WebSocket = require('ws');
 const bluetooth = require('node-bluetooth');
 const nodemailer = require('nodemailer');
-
 const app = express();
 let btp = new btPresence()
 const device = new bluetooth.DeviceINQ();
@@ -94,6 +93,7 @@ app.use(cors())
 // include external API functions
 
     var wss = new WebSocket.Server({ port: 6409 })
+    const gateway = require('./partials/gateway.js');
     const hacp = require('./partials/hacp.js');
     const method = require('./partials/methods.js');
 
@@ -105,7 +105,7 @@ app.use(cors())
 
         // start main functions
 
-        hacp.socketConnect(scope)
+        gateway.socketConnect(scope)
         hacp.getWeather(scope,method)
 
         // start BT presence
@@ -194,8 +194,8 @@ app.use(cors())
             scope.devices[mac_parse].present = res.isPresent
 
             // trigger any device home automations and emit the change
-            method.checkAutomation(mac_parse, 'away')
-            method.alarmState(false, 0, true)
+            method.checkAutomation(scope, mac_parse, 'away')
+            method.alarmState(scope, false, 0, true)
             hacp.save('devices', scope)
             scope.emit('devices',scope.devices[mac_parse],mac_parse)
 
@@ -210,8 +210,8 @@ app.use(cors())
             scope.devices[mac_parse].present = res.isPresent
 
             // trigger any device home automations and emit the change
-            method.checkAutomation(mac_parse, 'here')
-            method.alarmState(false, 0, true)
+            method.checkAutomation(scope, mac_parse, 'here')
+            method.alarmState(scope, false, 0, true)
             hacp.save('devices', scope)
             scope.emit('devices',scope.devices[mac_parse],mac_parse)
 
@@ -231,7 +231,7 @@ app.use(cors())
 
     app.get('/clean', (req, res) => {
 
-        method.cleanAutomations()
+        method.cleanAutomations(scope)
         res.send('Done')
 
     })
@@ -401,7 +401,7 @@ app.use(cors())
 
     app.get('/play/:type/:str', (req, res) => {
 
-        method.play(req.params.type,req.params.str)
+        hacp.audioCall(req.params.type,req.params.str, scope)
         res.send('ok')
 
     });
@@ -409,7 +409,7 @@ app.use(cors())
     app.put('/:entity_type', (req, res) => {
 
         if (typeof method['put_'+req.params.entity_type] == 'function'){
-            method['put_'+req.params.entity_type](req.body, (data) => {
+            method['put_'+req.params.entity_type](scope, req.body, (data) => {
                 res.json(data)
             })
         } else {
@@ -421,7 +421,7 @@ app.use(cors())
     app.put('/devices/:id', (req, res) => {
 
         if (req.body.name){
-            method.chDeviceName(req.params.id, req.body, (data) => {
+            method.chDeviceName(scope, req.params.id, req.body, (data) => {
                 res.json(data)
             })
         } else {
@@ -434,7 +434,7 @@ app.use(cors())
 
         if (req.body.type == 'check'){
             if (scope.alarm.alarms[req.body.key] && req.body.code == scope.alarm.alarms[req.body.key].code){
-                method.alarmState(true,req.body.key)
+                method.alarmState(scope, true,req.body.key)
                 res.sendStatus(200)
             } else {
                 res.sendStatus(404)
@@ -500,14 +500,14 @@ app.use(cors())
 
         if (scope.time.seconds == 0){ // every minute
 
-            method.checkAutomation(scope.time.HHmm)
+            method.checkAutomation(scope, scope.time.HHmm)
             scope.emit('schedule',{check:scope.time.HHmm})
 
         }
 
         if (scope.time.seconds == 30){ // every minute offset 30s
 
-            method.checkAutomation(''+parseInt(scope.time.HHmm)-1) // check if any temp automations have been missed
+            method.checkAutomation(scope, ''+parseInt(scope.time.HHmm)-1) // check if any temp automations have been missed
             scope.emit('schedule',{check:scope.time.HHmm})
 
         }
@@ -524,7 +524,7 @@ app.use(cors())
 
         if (scope.time.hours == 1 && scope.time.minutes == 0 && scope.time.seconds == 0){ // 1am clean up temp automations
 
-            method.cleanAutomations()
+            method.cleanAutomations(scope)
 
         }
 
@@ -541,7 +541,7 @@ app.use(cors())
         if (scope.time.seconds % 10 === 0){
             if (scope.ws.readyState != 1){
                 console.log('WS down, reconnecting...')
-                hacp.socketConnect(scope,method)
+                gateway.socketConnect(scope,method)
             }
         }
 

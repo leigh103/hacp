@@ -1,11 +1,13 @@
 const WebSocket = require('ws')
 const request = require('request')
 const fs = require('fs')
-const hacp = require('./hacp.js')
+const moment = require('moment-timezone')
+const nodemailer = require('nodemailer');
+const hacp = require('./hacp.js');
 
 module.exports = {
 
-    alarmState(set, key, chk_devices){
+    alarmState(scope, set, key, chk_devices){
 
         var all_away = true
         var cnt = 1
@@ -25,8 +27,8 @@ module.exports = {
                         if (set === true && scope.alarm.armed === false){ // don't set the alarm if it's already set
 
                             scope.alarm.all_away = true
-                            exports.setAlarm(key)
-                            exports.checkAutomation(scope, 'all_devices', 'away')
+                            module.exports.setAlarm(key, scope)
+                            module.exports.checkAutomation(scope, 'all_devices', 'away')
                             scope.emit('alarm',scope.alarm)
 
                         } else {
@@ -35,10 +37,10 @@ module.exports = {
 
                             if (!scope.timers.devices){
                                 scope.timers.devices = setTimeout(function(){ // wait 5 mins before setting the alarm
-                                    exports.alarmState(true, key, true)
+                                    module.exports.alarmState(scope, true, key, true)
                                 },300000)
                             }
-                            exports.emit('alarm',scope.alarm)
+                            module.exports.emit('alarm',scope.alarm)
                             hacp.save('alarm',scope)
 
                         }
@@ -48,7 +50,7 @@ module.exports = {
                         if (scope.timers.devices){
                             clearTimeout(scope.timers.devices)
                         }
-                        exports.setAlarm(false)
+                        module.exports.setAlarm(false, scope)
                         scope.emit('devices','false','all_away')
                     }
 
@@ -62,12 +64,12 @@ module.exports = {
 
         } else if (set === true && !chk_devices) { // force set/unset the alarm
 
-            exports.setAlarm(key)
+            module.exports.setAlarm(key, scope)
 
         }
     },
 
-    setAlarm(key){
+    setAlarm(key, scope){
 
         if (scope.alarm.triggered){
             scope.alarm.last_triggered = scope.alarm.triggered
@@ -104,7 +106,7 @@ module.exports = {
 
     },
 
-    triggerAlarm(){
+    triggerAlarm(scope){
 
         if (scope.alarm.key >= 0 && scope.alarm.alarms[scope.alarm.key] && scope.alarm.alarms[scope.alarm.key].email === true){
 
@@ -145,7 +147,7 @@ module.exports = {
 
     },
 
-    put_automations(data, callback){
+    put_automations(scope, data, callback){
         scope.automations = {...scope.automations, ...data}
         hacp.save('automations',scope, (data) => {
             if (data == 'ok'){
@@ -156,7 +158,7 @@ module.exports = {
         })
     },
 
-    put_devices(data, callback){
+    put_devices(scope, data, callback){
 
         var mac_parse = 'd'+data.mac.toUpperCase().replace(/\:/g,'')
         scope.devices[mac_parse] = {"present":true,"name":data.name,"mac_address":data.mac,"mac_parse":mac_parse}
@@ -173,7 +175,7 @@ module.exports = {
         })
     },
 
-    put_device_master(data, callback){
+    put_device_master(scope, data, callback){
 
         scope.devices[data.mac_parse].is_master = data.is_master
         hacp.save('devices', scope, (data) => {
@@ -186,7 +188,7 @@ module.exports = {
         })
     },
 
-    chDeviceName(id, data, callback){
+    chDeviceName(scope, id, data, callback){
 
         scope.devices[id].name = data.name
         hacp.save('devices', scope, (data) => {
@@ -200,7 +202,7 @@ module.exports = {
 
     },
 
-    delete_automations(data, callback){
+    delete_automations(scope, data, callback){
 
         if (scope.automations[data.sensor] && scope.automations[data.sensor][data.event] && scope.automations[data.sensor][data.event][data.key]){
             scope.automations[data.sensor][data.event].splice(data.key,1)
@@ -340,16 +342,16 @@ module.exports = {
 
                             if (scope.sensors[item.orig_sensor] && scope.sensors[item.orig_sensor].state && scope.sensors[item.orig_sensor].state.presence && scope.sensors[item.orig_sensor].state.presence === true){
                                 scope.emit('automation_temp_extend',item)
-                                exports.addTempAutomation(item) // add another temp automation if the trigger is a motion sensor, and it's still detecting presence
+                                module.exports.addTempAutomation(item) // add another temp automation if the trigger is a motion sensor, and it's still detecting presence
                             } else {
                                 if (test === true){
                                     scope.emit('automation_temp_run',item)
-                                    exports.runAutomation(item)
+                                    module.exports.runAutomation(item)
                                 }
                             }
                         } else {
                             if (test === true){
-                                exports.runAutomation(item)
+                                module.exports.runAutomation(item)
                             }
                         }
 
@@ -367,13 +369,13 @@ module.exports = {
 
                         if (scope.sensors[item.orig_sensor] && scope.sensors[item.orig_sensor].state && scope.sensors[item.orig_sensor].state.presence && scope.sensors[item.orig_sensor].state.presence === true){
                             scope.emit('automation_temp_extend',item)
-                            exports.addTempAutomation(item) // add another temp automation if the trigger is a motion sensor, and it's still detecting presence
+                            module.exports.addTempAutomation(item) // add another temp automation if the trigger is a motion sensor, and it's still detecting presence
                         } else {
                             scope.emit('automation_temp_run',item)
-                            exports.runAutomation(item)
+                            module.exports.runAutomation(item)
                         }
                     } else {
-                        exports.runAutomation(item)
+                        module.exports.runAutomation(item)
                     }
 
                     next()
@@ -388,7 +390,7 @@ module.exports = {
 
     },
 
-    runAutomation(data){
+    runAutomation(scope, data){
 
         if (typeof data.action == 'undefined'){
             return false
@@ -416,7 +418,7 @@ module.exports = {
 
             if (entity_chk == false){ // only add the auto turn off automation, if the light or group is currently off. If the entity is on, it doesn't need another auto off automation
 
-                exports.addTempAutomation(data)
+                module.exports.addTempAutomation(data)
 
             }
 
@@ -424,50 +426,50 @@ module.exports = {
 
         if (data.action.match(/toggle/)){
             var type = data.action.split('_')
-            exports.toggle(type[0],data.entity_id, false, data.transitiontime)
+            module.exports.toggle(type[0],data.entity_id, false, data.transitiontime)
         }
 
         if (data.action.match(/turn\_on/)){
             var type = data.action.split('_')
-            exports.toggle(type[0],data.entity_id, 'true', data.transitiontime)
+            module.exports.toggle(type[0],data.entity_id, 'true', data.transitiontime)
         }
 
         if (data.action.match(/turn\_off/)){
             var type = data.action.split('_')
-            exports.toggle(type[0],data.entity_id, 'false', data.transitiontime)
+            module.exports.toggle(type[0],data.entity_id, 'false', data.transitiontime)
         }
 
         if (data.action.match(/all\_off/)){
             var type = data.action.split('_')
-            exports.toggle(type[0],scope.all_lights_group_id, 'false', data.transitiontime)
+            module.exports.toggle(type[0],scope.all_lights_group_id, 'false', data.transitiontime)
         }
 
         if (data.action.match(/all\_on/)){
             var type = data.action.split('_')
-            exports.toggle(type[0],scope.all_lights_group_id, 'true', data.transitiontime)
+            module.exports.toggle(type[0],scope.all_lights_group_id, 'true', data.transitiontime)
         }
 
         if (data.action.match(/colorTemp/) && data.value){
             var type = data.action.split('_')
-            exports.colorTemp(type[0],data.entity_id,{ct:data.value}, data.transitiontime)
+            module.exports.colorTemp(type[0],data.entity_id,{ct:data.value}, data.transitiontime)
         }
 
         if (data.action.match(/brightness/) && data.value){
             var type = data.action.split('_')
-            exports.brightness(type[0],data.entity_id,{bri:data.value}, data.transitiontime)
+            module.exports.brightness(type[0],data.entity_id,{bri:data.value}, data.transitiontime)
         }
 
         if (data.action.match(/play_audio/) && data.value){
-            exports.play(data.entity_id,data.value,scope.settings)
+            module.exports.play(data.entity_id,data.value,scope.settings)
         }
 
         if (data.action.match(/activate_scene/) && data.value){
-            exports.toggle('scene',data.entity_id,data.value, data.transitiontime)
+            module.exports.toggle('scene',data.entity_id,data.value, data.transitiontime)
         }
 
     },
 
-    addTempAutomation(data){
+    addTempAutomation(scope, data){
 
         scope.emit('automation_temp_add',data)
 
@@ -505,7 +507,7 @@ module.exports = {
 
     },
 
-    cleanAutomations(){
+    cleanAutomations(scope){
 
         async.forEachOf(scope.automations, (item, key, next) => {
 
@@ -520,7 +522,7 @@ module.exports = {
 
     },
 
-    toggle(type, id, data, transitiontime) {
+    toggle(scope, type, id, data, transitiontime) {
 
         if (type == 'lights'){
             var url = type+'/'+id+'/state'
@@ -639,6 +641,21 @@ module.exports = {
 
     play(type,src){
         hacp.audioCall(type, src, scope.settings)
+    },
+
+    save(filename, scope, callback){
+
+        if (scope[filename].length > 0 || Object.keys(scope[filename]).length > 0){
+
+            fs.writeFile('./'+filename+'.json', JSON.stringify(scope[filename]), function read(err, data) {
+                if (err) {throw err;}
+                if (callback){
+                    callback('ok')
+                }
+            });
+
+        }
+
     }
 
 
