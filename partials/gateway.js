@@ -1,7 +1,6 @@
 const WebSocket = require('ws')
-const request = require('request')
-const fs = require('fs')
-const method = require('./methods.js');
+const method = require('./methods.js')
+const async = require('async')
 
 module.exports = {
 
@@ -17,9 +16,7 @@ module.exports = {
 
             msg = JSON.parse(msg.data)
 
-
             // relay the deconz websocket events to the HACP clients
-
 
             if (msg.id){
                 scope.emit(msg.r,msg.state,msg.id)
@@ -45,13 +42,16 @@ module.exports = {
                     if (msg.state.lux){
                         var msg_state = 'l'+msg.state.lux
                     }
+                    if (msg.state.open){
+                        var msg_state = 'd'+msg.state.open
+                    }
                     if (msg.state.daylight){
                         var msg_state = 'daylight'
                     }
                 }
 
                 if (msg_state != 'daylight' || msg_state == 'daylight' && msg.state.daylight != scope.sensors['1'].state.daylight){ // only trigger the daylight sensor automations on change
-                    method.checkAutomation('s'+msg.id, msg_state)
+                    method.checkAutomation(scope, 's'+msg.id, msg_state)
                 }
 
 
@@ -64,25 +64,25 @@ module.exports = {
 
                     if (msg.id && msg.id == scope.daylight_sensor.id && msg.state && msg.state.lux && msg.state.lux <= scope.daylight_sensor.cutoff.dark && scope.daylight_sensor.state != 'dark'){
 
-                        method.checkAutomation('daylight_dark')
+                        method.checkAutomation(scope, 'daylight_dark')
                         scope.daylight_sensor.state = 'dark'
                         scope.daylight_sensor.lastupdated = new Date()
 
                     } else if (msg.id && msg.id == scope.daylight_sensor.id && msg.state && msg.state.lux && msg.state.lux > scope.daylight_sensor.cutoff.dark && msg.state.lux <= scope.daylight_sensor.cutoff.dim && scope.daylight_sensor.state != 'dim'){
 
-                        method.checkAutomation('daylight_dim')
+                        method.checkAutomation(scope, 'daylight_dim')
                         scope.daylight_sensor.state = 'dim'
                         scope.daylight_sensor.lastupdated = new Date()
 
                     } else if (msg.id && msg.id == scope.daylight_sensor.id && msg.state && msg.state.lux && msg.state.lux > scope.daylight_sensor.cutoff.dim && msg.state.lux <= scope.daylight_sensor.cutoff.bright && scope.daylight_sensor.state != 'bright'){
 
-                        method.checkAutomation('daylight_bright')
+                        method.checkAutomation(scope, 'daylight_bright')
                         scope.daylight_sensor.state = 'bright'
                         scope.daylight_sensor.lastupdated = new Date()
 
                     } else if (msg.id && msg.id == scope.daylight_sensor.id && msg.state && msg.state.lux && msg.state.lux > scope.daylight_sensor.cutoff.bright && scope.daylight_sensor.state != 'sunny'){
 
-                        method.checkAutomation('daylight_sunny')
+                        method.checkAutomation(scope, 'daylight_sunny')
                         scope.daylight_sensor.state = 'sunny'
                         scope.daylight_sensor.lastupdated = new Date()
 
@@ -101,7 +101,7 @@ module.exports = {
                         scope.time.sunrise = false
                         scope.time.sunset = true
                         scope.time.dusk = false
-                        method.checkAutomation('dawn')
+                        method.checkAutomation(scope, 'dawn')
                     }
 
                     if (parseInt(msg.state.status) >= 140 && parseInt(msg.state.status) < 180 && scope.time.sunrise === false){ // sunrise automation
@@ -117,7 +117,7 @@ module.exports = {
                         scope.time.sunrise = false
                         scope.time.sunset = true
                         scope.time.dusk = false
-                        method.checkAutomation('sunset')
+                        method.checkAutomation(scope, 'sunset')
                     }
 
                     if (parseInt(msg.state.status) >= 200 && parseInt(msg.state.status) < 230 && scope.time.dusk === false){ // sunset automation
@@ -125,7 +125,7 @@ module.exports = {
                         scope.time.sunrise = false
                         scope.time.sunset = true
                         scope.time.dusk = true
-                        method.checkAutomation('dusk')
+                        method.checkAutomation(scope, 'dusk')
                     }
 
 

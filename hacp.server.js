@@ -99,8 +99,6 @@ app.use(cors())
 
 // Start Services
 
-
-
     method.init(scope, (data) => {
 
         // start main functions
@@ -446,7 +444,7 @@ app.use(cors())
     app.post('/:entity_type', (req, res) => {
 
         if (typeof method['delete_'+req.params.entity_type] == 'function'){
-            method['delete_'+req.params.entity_type](req.body, (data) => {
+            method['delete_'+req.params.entity_type](scope, req.body, (data) => {
                 res.json(data)
             })
         } else {

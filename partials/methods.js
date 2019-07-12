@@ -3,6 +3,7 @@ const request = require('request')
 const fs = require('fs')
 const moment = require('moment-timezone')
 const nodemailer = require('nodemailer');
+const async = require('async')
 const hacp = require('./hacp.js');
 
 module.exports = {
@@ -120,6 +121,7 @@ module.exports = {
                                     module.exports.alarmState(scope, true, key, true)
                                 },300000)
                             }
+
                             scope.emit('alarm',scope.alarm)
                             hacp.save('alarm',scope)
 
@@ -422,16 +424,16 @@ module.exports = {
 
                             if (scope.sensors[item.orig_sensor] && scope.sensors[item.orig_sensor].state && scope.sensors[item.orig_sensor].state.presence && scope.sensors[item.orig_sensor].state.presence === true){
                                 scope.emit('automation_temp_extend',item)
-                                module.exports.addTempAutomation(item) // add another temp automation if the trigger is a motion sensor, and it's still detecting presence
+                                module.exports.addTempAutomation(scope, item) // add another temp automation if the trigger is a motion sensor, and it's still detecting presence
                             } else {
                                 if (test === true){
                                     scope.emit('automation_temp_run',item)
-                                    module.exports.runAutomation(item)
+                                    module.exports.runAutomation(scope, item)
                                 }
                             }
                         } else {
                             if (test === true){
-                                module.exports.runAutomation(item)
+                                module.exports.runAutomation(scope, item)
                             }
                         }
 
@@ -449,13 +451,13 @@ module.exports = {
 
                         if (scope.sensors[item.orig_sensor] && scope.sensors[item.orig_sensor].state && scope.sensors[item.orig_sensor].state.presence && scope.sensors[item.orig_sensor].state.presence === true){
                             scope.emit('automation_temp_extend',item)
-                            module.exports.addTempAutomation(item) // add another temp automation if the trigger is a motion sensor, and it's still detecting presence
+                            module.exports.addTempAutomation(scope, item) // add another temp automation if the trigger is a motion sensor, and it's still detecting presence
                         } else {
                             scope.emit('automation_temp_run',item)
-                            module.exports.runAutomation(item)
+                            module.exports.runAutomation(scope, item)
                         }
                     } else {
-                        module.exports.runAutomation(item)
+                        module.exports.runAutomation(scope, item)
                     }
 
                     next()
@@ -498,7 +500,7 @@ module.exports = {
 
             if (entity_chk == false){ // only add the auto turn off automation, if the light or group is currently off. If the entity is on, it doesn't need another auto off automation
 
-                module.exports.addTempAutomation(data)
+                module.exports.addTempAutomation(scope, data)
 
             }
 
@@ -506,45 +508,45 @@ module.exports = {
 
         if (data.action.match(/toggle/)){
             var type = data.action.split('_')
-            module.exports.toggle(type[0],data.entity_id, false, data.transitiontime)
+            module.exports.toggle(scope, type[0],data.entity_id, false, data.transitiontime)
         }
 
         if (data.action.match(/turn\_on/)){
             var type = data.action.split('_')
-            module.exports.toggle(type[0],data.entity_id, 'true', data.transitiontime)
+            module.exports.toggle(scope, type[0],data.entity_id, 'true', data.transitiontime)
         }
 
         if (data.action.match(/turn\_off/)){
             var type = data.action.split('_')
-            module.exports.toggle(type[0],data.entity_id, 'false', data.transitiontime)
+            module.exports.toggle(scope, type[0],data.entity_id, 'false', data.transitiontime)
         }
 
         if (data.action.match(/all\_off/)){
             var type = data.action.split('_')
-            module.exports.toggle(type[0],scope.all_lights_group_id, 'false', data.transitiontime)
+            module.exports.toggle(scope, type[0],scope.all_lights_group_id, 'false', data.transitiontime)
         }
 
         if (data.action.match(/all\_on/)){
             var type = data.action.split('_')
-            module.exports.toggle(type[0],scope.all_lights_group_id, 'true', data.transitiontime)
+            module.exports.toggle(scope, type[0],scope.all_lights_group_id, 'true', data.transitiontime)
         }
 
         if (data.action.match(/colorTemp/) && data.value){
             var type = data.action.split('_')
-            module.exports.colorTemp(type[0],data.entity_id,{ct:data.value}, data.transitiontime)
+            module.exports.colorTemp(scope, type[0],data.entity_id,{ct:data.value}, data.transitiontime)
         }
 
         if (data.action.match(/brightness/) && data.value){
             var type = data.action.split('_')
-            module.exports.brightness(type[0],data.entity_id,{bri:data.value}, data.transitiontime)
+            module.exports.brightness(scope, type[0],data.entity_id,{bri:data.value}, data.transitiontime)
         }
 
         if (data.action.match(/play_audio/) && data.value){
-            module.exports.play(data.entity_id,data.value,scope.settings)
+            module.exports.play(scope, data.entity_id,data.value,scope.settings)
         }
 
         if (data.action.match(/activate_scene/) && data.value){
-            module.exports.toggle('scene',data.entity_id,data.value, data.transitiontime)
+            module.exports.toggle(scope, 'scene',data.entity_id,data.value, data.transitiontime)
         }
 
     },
@@ -679,7 +681,7 @@ module.exports = {
         }
     },
 
-    colorTemp(type, id, data, transitiontime){
+    colorTemp(scope, type, id, data, transitiontime){
 
         if (type == 'lights'){
             var url = type+'/'+id+'/state'
@@ -699,7 +701,7 @@ module.exports = {
 
     },
 
-    brightness(type, id, data, transitiontime) {
+    brightness(scope, type, id, data, transitiontime) {
 
         if (type == 'lights'){
             var url = type+'/'+id+'/state'
@@ -719,8 +721,12 @@ module.exports = {
 
     },
 
-    play(type,src){
+    play(scope, type,src){
         hacp.audioCall(type, src, scope.settings)
+    },
+
+    hacpPlay(scope, type,src){
+        hacp.hacpAudioCall(type, src, scope.settings)
     },
 
     save(filename, scope, callback){
