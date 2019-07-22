@@ -188,6 +188,65 @@ module.exports = {
 
     },
 
+    getCamImages(scope, alarm){
+
+        if (alarm === true && scope.alarm.key >= 0 && scope.alarm.alarms[scope.alarm.key] && scope.alarm.alarms[scope.alarm.key].cameras.length > 0){
+
+            scope.alarm.html = "<b>"+scope.alarm.alarms[scope.alarm.key].name+" has been triggered</b><br><br>";
+            let iterations = scope.alarm.alarms[scope.alarm.key].cameras.length;
+
+            for (const cam of scope.alarm.alarms[scope.alarm.key].cameras) {
+
+                scope.alarm.html += "<a href='"+cam.view_url+"'>Cam1</a><br><br>"
+
+                request({
+                    method: 'GET',
+                    url: cam.image_url,
+                    auth: {
+                        user: cam.username,
+                        password: cam.password
+                    },
+                    encoding: null
+                }, (error, response, body) => {
+
+                    if (!error && response.statusCode == 200) {
+
+                        let data = "data:" + response.headers["content-type"] + ";base64," + Buffer.from(body).toString('base64')
+                        let base64Data = data.replace(/^data:image\/jpeg;base64,/, "");
+                        let imgname = 'images/Cam0-'+new Date().getTime().toString()+'.jpg';
+                        let imgurl = "http://3o3mtdevlpmrplgc.myfritz.net:3000/"+imgname
+
+                        fs.writeFile(imgname, base64Data, 'base64', function(err) {
+                            if (err){
+                                console.log(err);
+                            }
+                        });
+
+                        scope.alarm.html += '<img src="'+imgurl+'"><br>'
+
+                    } else {
+
+                        console.log(response.statusCode)
+
+                    }
+
+                    if (--iterations <= 0){
+                        module.exports.triggerAlarm(scope)
+                    }
+
+                })
+
+            }
+
+        } else {
+            if (alarm === true){
+                module.exports.triggerAlarm(scope)
+            }
+        }
+
+
+    },
+
     triggerAlarm(scope){
 
         if (scope.alarm.key >= 0 && scope.alarm.alarms[scope.alarm.key] && scope.alarm.alarms[scope.alarm.key].email === true){
@@ -209,8 +268,8 @@ module.exports = {
                 from: "HACP",
                 to: scope.settings.email.recipients,
                 subject: scope.alarm.alarms[scope.alarm.key].name+" has been triggered",
-                text: "Node.js New world for me",
-                html: "<b>Node.js New world for me</b>",
+                text: scope.alarm.alarms[scope.alarm.key].name+" has been triggered",
+                html: scope.alarm.html,
                 priority: "high"
             }
 

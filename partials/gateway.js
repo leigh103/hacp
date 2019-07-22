@@ -140,7 +140,7 @@ module.exports = {
                     if (scope.alarm.sensors.indexOf(msg.id) !== -1){ // if the reporting sensor is in the current alarm sensor group
 
                         if (msg.state && msg.state.presence && msg.state.presence === true){ // if motion is detected trigger alarm
-                            method.triggerAlarm(scope)
+                            method.getCamImages(scope, true)
                         }
 
                     }

@@ -1,6 +1,7 @@
 const btPresence = require('bt-presence').btPresence
 const moment = require('moment-timezone')
 const async = require('async')
+const fs = require('fs')
 const request = require('request')
 const express = require('express')
 const bodyParser = require('body-parser')
@@ -9,9 +10,11 @@ const WebSocket = require('ws');
 const bluetooth = require('node-bluetooth');
 const nodemailer = require('nodemailer');
 const app = express();
+
 let btp = new btPresence()
 const device = new bluetooth.DeviceINQ();
 
+app.use('/images', express.static(__dirname + '/images'));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(cors())
@@ -76,6 +79,7 @@ app.use(cors())
                 //    console.log(group_data)
                     scope.groups = group_data
                 })
+
             }
 
             wss.clients.forEach(function each(client) {
@@ -281,6 +285,12 @@ app.use(cors())
                 res.send('Email sent: ' + info.response);
             }
         });
+    })
+
+    app.get('/test-alarm/:key', (req, res) => {
+        scope.alarm.key = req.params.key
+        method.getCamImages(scope, true)
+        res.status(200).send('Alarm '+req.params.key+' triggered')
     })
 
     app.get('/init', (req, res) => {
