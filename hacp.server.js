@@ -439,8 +439,9 @@ app.use(cors())
     });
 
     app.post('/alarm', (req, res) => {
-
+console.log(req.body)
         if (req.body.type == 'check'){
+
             if (scope.alarm.alarms[req.body.key] && req.body.code == scope.alarm.alarms[req.body.key].code){
 
                 if (scope.alarm.armed === false && scope.alarm.setting === false){ // both have to be false to enable the alarm, else disarm
@@ -465,11 +466,16 @@ app.use(cors())
 
                 }
 
-
-
             } else {
                 res.sendStatus(404)
             }
+
+        } else if (req.body.type == 'delete'){
+
+            method.delete_alarm(scope, req.body.key, function(data){
+                res.status(data).send('done');
+            })
+
         }
 
     })

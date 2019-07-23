@@ -145,7 +145,7 @@ module.exports = {
             }
 
         } else if (set === true && !chk_devices) { // force set/unset the alarm
-            
+
             module.exports.setAlarm(key, scope)
 
         }
@@ -344,6 +344,42 @@ module.exports = {
                 callback(500)
             }
         })
+    },
+
+    put_alarm(scope, data, callback){
+
+        if (data.key >= 0){
+            scope.alarm.alarms[data.key] = data
+        } else {
+            scope.alarm.alarms.push(data)
+        }
+
+        hacp.save('alarm', scope, (data) => {
+            if (data == 'ok'){
+                scope.emit('alarm',scope.alarm)
+                callback(200)
+            } else {
+                callback(500)
+            }
+        })
+
+    },
+
+    delete_alarm(scope, key, callback){
+
+        if (key >= 0){
+            scope.alarm.alarms.splice(key,1)
+        }
+
+        hacp.save('alarm', scope, (data) => {
+            if (data == 'ok'){
+                scope.emit('alarm',scope.alarm)
+                callback(200)
+            } else {
+                callback(500)
+            }
+        })
+
     },
 
     chDeviceName(scope, id, data, callback){
