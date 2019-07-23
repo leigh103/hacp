@@ -442,8 +442,31 @@ app.use(cors())
 
         if (req.body.type == 'check'){
             if (scope.alarm.alarms[req.body.key] && req.body.code == scope.alarm.alarms[req.body.key].code){
-                method.alarmState(scope, true,req.body.key)
-                res.sendStatus(200)
+
+                if (scope.alarm.armed === false && scope.alarm.setting === false){ // both have to be false to enable the alarm, else disarm
+
+                    scope.alarm.setting = moment().tz(scope.settings.timezone).add(30,'s')
+
+                    scope.timers.alarm_set = setTimeout(function(){ // wait before setting the alarm
+                        method.setAlarm(req.body.key, scope)
+                    },30000)
+
+                    scope.emit('alarm',scope.alarm)
+                    hacp.save('alarm',scope)
+                    res.sendStatus(200)
+
+                } else {
+
+                    method.setAlarm(false, scope)
+
+                    scope.emit('alarm',scope.alarm)
+                    hacp.save('alarm',scope)
+                    res.sendStatus(201)
+
+                }
+
+
+
             } else {
                 res.sendStatus(404)
             }

@@ -114,12 +114,12 @@ module.exports = {
 
                         } else {
 
-                            scope.alarm.setting = moment().tz(scope.settings.timezone).add(5,'m')
+                            scope.alarm.setting = moment().tz(scope.settings.timezone).add(2,'m')
 
                             if (!scope.timers.devices){
-                                scope.timers.devices = setTimeout(function(){ // wait 5 mins before setting the alarm
+                                scope.timers.devices = setTimeout(function(){ // wait 2 mins before setting the alarm
                                     module.exports.alarmState(scope, true, key, true)
-                                },300000)
+                                },120000)
                             }
 
                             scope.emit('alarm',scope.alarm)
@@ -145,7 +145,7 @@ module.exports = {
             }
 
         } else if (set === true && !chk_devices) { // force set/unset the alarm
-
+            
             module.exports.setAlarm(key, scope)
 
         }
@@ -194,49 +194,66 @@ module.exports = {
 
             scope.alarm.html = "<b>"+scope.alarm.alarms[scope.alarm.key].name+" has been triggered</b><br><br>";
             let iterations = scope.alarm.alarms[scope.alarm.key].cameras.length;
+            let s_iterations = scope.alarm.sensors.length;
 
-            for (const cam of scope.alarm.alarms[scope.alarm.key].cameras) {
+            for (const sensor of scope.alarm.sensors) {
 
-                scope.alarm.html += "<a href='"+cam.view_url+"'>Cam1</a><br><br>"
+                if (scope.sensors[sensor].state && typeof scope.sensors[sensor].state.presence != 'undefined'){
+                    scope.alarm.html += '<b>'+scope.sensors[sensor].name+'</b><br>Motion: '+scope.sensors[sensor].state.presence+'<br>Last Update: '+scope.sensors[sensor].state.lastupdated+'<br><br>'
+                }
+                if (scope.sensors[sensor].state && typeof scope.sensors[sensor].state.open != 'undefined'){
+                    scope.alarm.html += '<b>'+scope.sensors[sensor].name+':</b><br>Door/Window: '+scope.sensors[sensor].state.open+'<br>Last Update:  '+scope.sensors[sensor].state.lastupdated+'<br><br>'
+                }
 
-                request({
-                    method: 'GET',
-                    url: cam.image_url,
-                    auth: {
-                        user: cam.username,
-                        password: cam.password
-                    },
-                    encoding: null
-                }, (error, response, body) => {
+                if (--s_iterations <= 0){
 
-                    if (!error && response.statusCode == 200) {
+                    for (const cam of scope.alarm.alarms[scope.alarm.key].cameras) {
 
-                        let data = "data:" + response.headers["content-type"] + ";base64," + Buffer.from(body).toString('base64')
-                        let base64Data = data.replace(/^data:image\/jpeg;base64,/, "");
-                        let imgname = 'images/Cam0-'+new Date().getTime().toString()+'.jpg';
-                        let imgurl = "http://3o3mtdevlpmrplgc.myfritz.net:3000/"+imgname
+                        scope.alarm.html += "<a href='"+cam.view_url+"'>Click here to view "+cam.name+"</a><br><br>"
 
-                        fs.writeFile(imgname, base64Data, 'base64', function(err) {
-                            if (err){
-                                console.log(err);
+                        request({
+                            method: 'GET',
+                            url: cam.image_url,
+                            auth: {
+                                user: cam.username,
+                                password: cam.password
+                            },
+                            encoding: null
+                        }, (error, response, body) => {
+
+                            if (!error && response.statusCode == 200) {
+
+                                let data = "data:" + response.headers["content-type"] + ";base64," + Buffer.from(body).toString('base64')
+                                let base64Data = data.replace(/^data:image\/jpeg;base64,/, "");
+                                let imgname = 'images/Cam0-'+new Date().getTime().toString()+'.jpg';
+                                let imgurl = "http://3o3mtdevlpmrplgc.myfritz.net:3000/"+imgname
+
+                                fs.writeFile(imgname, base64Data, 'base64', function(err) {
+                                    if (err){
+                                        console.log(err);
+                                    }
+                                });
+
+                                scope.alarm.html += '<img src="'+imgurl+'"><br>'
+
+                            } else {
+
+                                console.log(response.statusCode)
+
                             }
-                        });
 
-                        scope.alarm.html += '<img src="'+imgurl+'"><br>'
+                            if (--iterations <= 0){
+                                module.exports.triggerAlarm(scope)
+                            }
 
-                    } else {
-
-                        console.log(response.statusCode)
+                        })
 
                     }
 
-                    if (--iterations <= 0){
-                        module.exports.triggerAlarm(scope)
-                    }
-
-                })
-
+                }
             }
+
+
 
         } else {
             if (alarm === true){
