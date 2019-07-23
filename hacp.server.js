@@ -269,7 +269,7 @@ app.use(cors())
           });
 
         let mailOptions = {
-            from: "HACP",
+            from: scope.settings.email.from,
             to: scope.settings.email.recipients,
             subject: "This is a test email",
             text: "Your HACP email settings have been validated, nice work!",
@@ -439,12 +439,12 @@ app.use(cors())
     });
 
     app.post('/alarm', (req, res) => {
-console.log(req.body)
+
         if (req.body.type == 'check'){
 
-            if (scope.alarm.alarms[req.body.key] && req.body.code == scope.alarm.alarms[req.body.key].code){
+            if (scope.alarm.alarms[req.body.key] && req.body.code == scope.alarm.alarms[req.body.key].code){ // if the alarm code is right
 
-                if (scope.alarm.armed === false && scope.alarm.setting === false){ // both have to be false to enable the alarm, else disarm
+                if (scope.alarm.armed === false && scope.alarm.setting === false && scope.alarm.alarms[req.body.key] && scope.alarm.alarms[req.body.key].countdown && scope.alarm.alarms[req.body.key].countdown === true){ // both have to be false to enable the alarm, else disarm
 
                     scope.alarm.setting = moment().tz(scope.settings.timezone).add(30,'s')
 
@@ -458,7 +458,7 @@ console.log(req.body)
 
                 } else {
 
-                    method.setAlarm(false, scope)
+                    method.setAlarm(req.body.key, scope)
 
                     scope.emit('alarm',scope.alarm)
                     hacp.save('alarm',scope)

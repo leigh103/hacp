@@ -141,6 +141,8 @@ module.exports = {
 
                         if (msg.state && msg.state.presence && msg.state.presence === true){ // if motion is detected trigger alarm
                             method.getCamImages(scope, true)
+                        } else if (msg.state && msg.state.open && msg.state.open === true){ // if motion is detected trigger alarm
+                            method.getCamImages(scope, true)
                         }
 
                     }

@@ -282,7 +282,7 @@ module.exports = {
               });
 
             let mailOptions = {
-                from: "HACP",
+                from: scope.settings.email.from,
                 to: scope.settings.email.recipients,
                 subject: scope.alarm.alarms[scope.alarm.key].name+" has been triggered",
                 text: scope.alarm.alarms[scope.alarm.key].name+" has been triggered",
