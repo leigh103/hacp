@@ -409,7 +409,7 @@ app.use(cors())
 
     app.get('/play/:type/:str', (req, res) => {
 
-        hacp.audioCall(req.params.type,req.params.str, scope)
+        hacp.audioCall(req.params.type,req.params.str, scope.settings)
         res.send('ok')
 
     });

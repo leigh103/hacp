@@ -299,6 +299,10 @@ module.exports = {
             });
         }
 
+        if (scope.alarm.key >= 0 && scope.alarm.alarms[scope.alarm.key] && scope.alarm.alarms[scope.alarm.key].alert === true){
+            module.exports.play(scope,'clipall',{file:'siren.wav',vol:60})
+        }
+
         scope.alarm.triggered = moment().tz(scope.settings.timezone)
         scope.emit('alarm',scope.alarm)
         hacp.save('alarm',scope)
@@ -833,11 +837,11 @@ module.exports = {
 
     },
 
-    play(scope, type,src){
+    play(scope, type, src){
         hacp.audioCall(type, src, scope.settings)
     },
 
-    hacpPlay(scope, type,src){
+    hacpPlay(scope, type, src){
         hacp.hacpAudioCall(type, src, scope.settings)
     },
 

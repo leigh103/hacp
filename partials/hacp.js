@@ -42,12 +42,23 @@ module.exports = {
     audioCall(url, data, scope, callback){
 
         var method = 'GET'
+        var file, vol
 
-        data = data.replace(/’/g,"'")
+        if (typeof data == 'object'){
+            file = data.file
+            if (data.vol){
+                vol = data.vol
+            }
+        } else {
+            file = data
+            vol = 40
+        }
+
+        file = file.replace(/’/g,"'")
 
         request({
             method: method,
-            url: 'http://'+scope.audio_host+':'+scope.audio_host_port+'/'+url+'/'+data
+            url: 'http://'+scope.audio_host+':'+scope.audio_host_port+'/'+url+'/'+file+'/'+vol
         }, function (error, request, body) {
 
             if (callback){
