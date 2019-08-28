@@ -1,1 +1,0 @@
-{"armed":false,"sensors":[],"triggered":false,"setting":"2019-03-26T23:34:56.305Z","alarms":[{"name":"House Alarm","code":1234,"description":"Arm all motion sensors and cameras, email and alert on trigger","email":true,"alert":true,"sensors":["11","17","7","14"],"cameras":[]}],"key":false,"all_away":false,"last_triggered":"2019-03-26T23:11:10.906Z"}
