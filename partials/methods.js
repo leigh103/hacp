@@ -170,6 +170,10 @@ module.exports = {
                 scope.alarm.triggered = false
                 scope.alarm.key = false
                 scope.alarm.sensors = []
+
+                if (scope.timers.alarm_alert){
+                    clearInterval(scope.timers.alarm_alert)
+                }
             }
 
         } else {
@@ -180,6 +184,10 @@ module.exports = {
             scope.alarm.triggered = false
             scope.alarm.key = false
             scope.alarm.sensors = []
+
+            if (scope.timers.alarm_alert){
+                clearInterval(scope.timers.alarm_alert)
+            }
 
         }
 
@@ -238,7 +246,7 @@ module.exports = {
 
                             } else {
 
-                                console.log(response.statusCode)
+                            //    console.log(response.statusCode)
 
                             }
 
@@ -300,7 +308,11 @@ module.exports = {
         }
 
         if (scope.alarm.key >= 0 && scope.alarm.alarms[scope.alarm.key] && scope.alarm.alarms[scope.alarm.key].alert === true){
-            module.exports.play(scope,'clipall',{file:'siren.wav',vol:60})
+            module.exports.play(scope,'clipall',{file:'siren.wav',vol:20})
+
+            scope.timers.alarm_alert = setInterval(()=>{
+                module.exports.play(scope,'clipall',{file:'siren.wav',vol:20})
+            }, 7000) // needs to be the length of the audio file
         }
 
         scope.alarm.triggered = moment().tz(scope.settings.timezone)
@@ -453,6 +465,8 @@ module.exports = {
 
     checkAutomation(scope, evnt, val) {
 
+
+
         var automation_data = ''
 
         if (val && scope.automations && scope.automations[evnt] && scope.automations[evnt][val]){
@@ -529,8 +543,6 @@ module.exports = {
 
                     }, (cond_err) => {
 
-                    //    console.log(test)
-
                         if (item.delete){
 
                             scope.automations[evnt].splice(scope.automations[evnt].indexOf(item),1) // delete the temp automation object
@@ -548,7 +560,7 @@ module.exports = {
                                 }
                             }
                         } else {
-                            if (test === true){
+                            if (test === true || test == 'init'){
                                 module.exports.runAutomation(scope, item)
                             }
                         }

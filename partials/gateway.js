@@ -51,6 +51,7 @@ module.exports = {
                 }
 
                 if (msg_state != 'daylight' || msg_state == 'daylight' && msg.state.daylight != scope.sensors['1'].state.daylight){ // only trigger the daylight sensor automations on change
+                    // console.log('s'+msg.id, msg_state)
                     method.checkAutomation(scope, 's'+msg.id, msg_state)
                 }
 
