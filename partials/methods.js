@@ -373,9 +373,14 @@ module.exports = {
         hacp.save('alarm', scope, (data) => {
             if (data == 'ok'){
                 scope.emit('alarm',scope.alarm)
-                callback(200)
+                if (callback && typeof callback == 'function'){
+                    callback(200)
+                }
+
             } else {
-                callback(500)
+                if (callback && typeof callback == 'function'){
+                    callback(500)
+                }
             }
         })
 
@@ -721,11 +726,23 @@ module.exports = {
 
         async.forEachOf(scope.automations, (item, key, next) => {
 
-            if (item.length < 1){
-                delete scope.automations[key]
-            }
+            async.forEachOf(item, (item_data, key_data, nextObj) => {
 
-            next()
+                if (item_data && item_data.delete && item_data.delete === true){
+                    scope.automations[key].splice(key_data,1)
+                }
+
+                nextObj()
+
+            }, (err) => {
+
+                if (typeof item.length != 'undefined' && item.length < 1){
+                    delete scope.automations[key]
+                }
+
+                next()
+            })
+
         }, (err) => {
             hacp.save('automations',scope)
         })
