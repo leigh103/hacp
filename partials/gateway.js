@@ -182,8 +182,8 @@ module.exports = {
 
         }
 
-        if (callback){
-            return callback(scope)
+        if (typeof callback == 'function'){
+            callback(scope)
         }
 
     }
