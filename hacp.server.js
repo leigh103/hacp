@@ -30,7 +30,7 @@ app.use(cors())
             state: 'bright',
             lastupdated: new Date(),
             cutoff: {
-                dark:20,
+                dark:50,
                 dim:1700,
                 bright:10000
             }
