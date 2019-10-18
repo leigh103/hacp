@@ -322,6 +322,7 @@ module.exports = {
     },
 
     put_automations(scope, data, callback){
+    //    console.log(data)
         scope.automations = {...scope.automations, ...data}
         hacp.save('automations',scope, (data) => {
             if (data == 'ok'){
@@ -419,23 +420,48 @@ module.exports = {
 
     delete_automations(scope, data, callback){
 
-        if (scope.automations[data.sensor] && scope.automations[data.sensor][data.event] && scope.automations[data.sensor][data.event][data.key]){
-            scope.automations[data.sensor][data.event].splice(data.key,1)
-            if (scope.automations[data.sensor][data.event].length < 1){
-                delete scope.automations[data.sensor][data.event]
+        if (data.sensor){ // sensor automation
+
+            if (scope.automations[data.sensor] && scope.automations[data.sensor][data.event] && scope.automations[data.sensor][data.event][data.key]){
+
+                scope.automations[data.sensor][data.event].splice(data.key,1)
+                if (scope.automations[data.sensor][data.event].length < 1){
+                    delete scope.automations[data.sensor][data.event]
+                }
+
+            } else if (scope.automations[data.sensor] && scope.automations[data.sensor][data.event]){
+
+                if (scope.automations[data.sensor].length>0){
+                    scope.automations[data.sensor].splice(data.event,1)
+                } else {
+                    delete scope.automations[data.sensor][data.event]
+                }
+
             }
-        } else if (scope.automations[data.sensor] && scope.automations[data.sensor][data.event]){
-            scope.automations[data.sensor].splice(data.event,1)
-            if (scope.automations[data.sensor].length < 1){
+
+            if (scope.automations[data.sensor].length < 1 || Object.keys(scope.automations[data.sensor]).length < 1){
                 delete scope.automations[data.sensor]
             }
+
+        } else { // timer automation
+
+            if (scope.automations[data.event] && scope.automations[data.event][data.key]){
+                scope.automations[data.event].splice(data.key,1)
+            }
+
+            if (scope.automations[data.event].length < 1 || Object.keys(scope.automations[data.event]).length < 1){
+                delete scope.automations[data.event]
+            }
+
         }
+
+
 
         hacp.save('automations',scope, (data2) => {
 
             if (data2 == 'ok'){
 
-                if (data.sensor.match(/^s|^d/)){ // if sensor automation
+                if (data.sensor && data.sensor.match(/^s|^d/)){ // if sensor automation
 
                     callback(scope.automations[data.sensor])
 
