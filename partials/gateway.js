@@ -58,38 +58,48 @@ module.exports = {
 
                 // outside light level sensor automations
 
-
                 var date_now = new Date()
 
-                if (date_now - scope.daylight_sensor.lastupdated >= 900000){ // if the last update for dark/dim/bright/sunny was over 30 mins ago. Stops automations repeatedly triggering if the light level is bouncing
+                if (msg.state && msg.state.lux && msg.id && msg.id == scope.daylight_sensor.id){
 
-                    if (msg.id && msg.id == scope.daylight_sensor.id && msg.state && msg.state.lux && msg.state.lux <= scope.daylight_sensor.cutoff.dark && scope.daylight_sensor.state != 'dark'){
+                //    console.log(msg.state.lux, scope.daylight_sensor)
+                //    console.log(date_now - scope.daylight_sensor.lastupdated)
 
-                        method.checkAutomation(scope, 'daylight_dark')
-                        scope.daylight_sensor.state = 'dark'
-                        scope.daylight_sensor.lastupdated = new Date()
+                    if (date_now - scope.daylight_sensor.lastupdated >= 900000){ // if the last update for dark/dim/bright/sunny was over 30 mins ago. Stops automations repeatedly triggering if the light level is bouncing
 
-                    } else if (msg.id && msg.id == scope.daylight_sensor.id && msg.state && msg.state.lux && msg.state.lux > scope.daylight_sensor.cutoff.dark && msg.state.lux <= scope.daylight_sensor.cutoff.dim && scope.daylight_sensor.state != 'dim'){
+                        if (msg.state.lux <= scope.daylight_sensor.cutoff.dark && scope.daylight_sensor.state != 'dark'){
 
-                        method.checkAutomation(scope, 'daylight_dim')
-                        scope.daylight_sensor.state = 'dim'
-                        scope.daylight_sensor.lastupdated = new Date()
+                        //    console.log('running dl dark')
+                            method.checkAutomation(scope, 'daylight_dark')
+                            scope.daylight_sensor.state = 'dark'
+                            scope.daylight_sensor.lastupdated = new Date()
 
-                    } else if (msg.id && msg.id == scope.daylight_sensor.id && msg.state && msg.state.lux && msg.state.lux > scope.daylight_sensor.cutoff.dim && msg.state.lux <= scope.daylight_sensor.cutoff.bright && scope.daylight_sensor.state != 'bright'){
+                        } else if (msg.state.lux > scope.daylight_sensor.cutoff.dark && msg.state.lux <= scope.daylight_sensor.cutoff.dim && scope.daylight_sensor.state != 'dim'){
 
-                        method.checkAutomation(scope, 'daylight_bright')
-                        scope.daylight_sensor.state = 'bright'
-                        scope.daylight_sensor.lastupdated = new Date()
+                        //    console.log('running dl dim')
+                            method.checkAutomation(scope, 'daylight_dim')
+                            scope.daylight_sensor.state = 'dim'
+                            scope.daylight_sensor.lastupdated = new Date()
 
-                    } else if (msg.id && msg.id == scope.daylight_sensor.id && msg.state && msg.state.lux && msg.state.lux > scope.daylight_sensor.cutoff.bright && scope.daylight_sensor.state != 'sunny'){
+                        } else if (msg.state.lux > scope.daylight_sensor.cutoff.dim && msg.state.lux <= scope.daylight_sensor.cutoff.bright && scope.daylight_sensor.state != 'bright'){
 
-                        method.checkAutomation(scope, 'daylight_sunny')
-                        scope.daylight_sensor.state = 'sunny'
-                        scope.daylight_sensor.lastupdated = new Date()
+                        //    console.log('running dl bright')
+                            method.checkAutomation(scope, 'daylight_bright')
+                            scope.daylight_sensor.state = 'bright'
+                            scope.daylight_sensor.lastupdated = new Date()
 
-                    }
+                        } else if (msg.state.lux > scope.daylight_sensor.cutoff.bright && scope.daylight_sensor.state != 'sunny'){
 
-                }
+                        //    console.log('running dl sunny')
+                            method.checkAutomation(scope, 'daylight_sunny')
+                            scope.daylight_sensor.state = 'sunny'
+                            scope.daylight_sensor.lastupdated = new Date()
+
+                        }
+
+                  }
+
+            }
 
 
                 // using the inbuilt daylight sensor, trigger automations and set values based on the sun position
