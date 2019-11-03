@@ -30,9 +30,9 @@ app.use(cors())
             state: 'bright',
             lastupdated: new Date(),
             cutoff: {
-                dark:50,
-                dim:1700,
-                bright:10000
+                dark:10,
+                dim:400,
+                bright:5000
             }
         },
         sensors: [],
